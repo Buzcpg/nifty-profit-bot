@@ -87,9 +87,10 @@ Follow these carefully — you only need to do this once.
 ## Step 3: Install the Bot
 
 ### The Easy Way (Recommended)
-After cloning the repo, just run:
 
 ```bash
+git clone https://github.com/Buzcpg/nifty-profit-bot.git
+cd nifty-profit-bot
 node setup.js
 ```
 
