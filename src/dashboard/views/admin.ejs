@@ -102,6 +102,47 @@
 
     th { color: var(--muted); }
 
+    .panel p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .config-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .helper {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .preview {
+      margin-top: 10px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
     @media (max-width: 680px) {
       body { padding: 14px; }
       table { font-size: 0.85rem; }
@@ -123,6 +164,42 @@
       />
       <button type="submit">Save Config</button>
     </form>
+  </div>
+
+  <div class="panel">
+    <h2>Profit Name (Bot Nickname)</h2>
+    <p>When enabled, the bot updates its nickname in your Discord server every 6 minutes to show total profit.</p>
+    <form class="config-stack" action="/admin/config/profit-name" method="POST">
+      <label class="checkbox-row" for="profit_name_enabled">
+        <input
+          id="profit_name_enabled"
+          type="checkbox"
+          name="profit_name_enabled"
+          value="true"
+          <%= profitNameEnabled === 'true' ? 'checked' : '' %>
+        />
+        Enable Profit Name
+      </label>
+
+      <div class="field">
+        <label for="profit_name_guild_id">Server ID</label>
+        <input
+          id="profit_name_guild_id"
+          type="text"
+          name="profit_name_guild_id"
+          value="<%= profitNameGuildId || '' %>"
+          placeholder="Right-click your server → Copy Server ID"
+        />
+        <p class="helper">To get your Server ID: enable Developer Mode in Discord Settings → Advanced, then right-click your server name and click 'Copy Server ID'</p>
+      </div>
+
+      <button type="submit">Save</button>
+    </form>
+    <% if (profitNameEnabled === 'true') { %>
+      <div class="preview">
+        Current: 💰 $<%= Number(stats?.total_profit_usd ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) %> total
+      </div>
+    <% } %>
   </div>
 
   <div class="panel">

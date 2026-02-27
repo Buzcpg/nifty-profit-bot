@@ -34,14 +34,31 @@ app.get('/', (_req, res) => {
 app.get('/admin', (_req, res) => {
   const stats = getAllStats();
   const announceChannel = getConfig('announce_channel');
+  const profitNameEnabled = getConfig('profit_name_enabled') || 'false';
+  const profitNameGuildId = getConfig('profit_name_guild_id') || '';
   const recentProfits = getRecentProfits(20);
 
-  res.render('admin', { stats, announceChannel, recentProfits });
+  res.render('admin', {
+    stats,
+    announceChannel,
+    profitNameEnabled,
+    profitNameGuildId,
+    recentProfits,
+  });
 });
 
 app.post('/admin/config', (req, res) => {
   const announceChannel = req.body.announce_channel;
   setConfig('announce_channel', announceChannel);
+  res.redirect('/admin');
+});
+
+app.post('/admin/config/profit-name', (req, res) => {
+  const profitNameEnabled = req.body.profit_name_enabled ? 'true' : 'false';
+  const profitNameGuildId = (req.body.profit_name_guild_id || '').trim();
+
+  setConfig('profit_name_enabled', profitNameEnabled);
+  setConfig('profit_name_guild_id', profitNameGuildId);
   res.redirect('/admin');
 });
 
