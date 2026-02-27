@@ -1,0 +1,14 @@
+{
+  "name": "nifty-profit-bot",
+  "version": "1.0.0",
+  "description": "Nifty Workshop profit tracking Discord bot",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dashboard": "node src/dashboard/server.js",
+    "register": "node src/commands/register.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
