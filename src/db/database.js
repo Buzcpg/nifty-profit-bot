@@ -1,143 +1,99 @@
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
-const Database = require('better-sqlite3');
+const { parse } = require('csv-parse/sync');
+const { stringify } = require('csv-stringify/sync');
+const os = require('os');
 
-const defaultDbPath = path.join(os.homedir(), '.openclaw', 'nifty-profit-bot.db');
-const dbPath = process.env.DB_PATH || defaultDbPath;
+const DATA_DIR = process.env.DATA_DIR || path.join(os.homedir(), '.openclaw', 'nifty-profit-bot');
+const PROFITS_FILE = path.join(DATA_DIR, 'profits.csv');
+const CONFIG_FILE = path.join(DATA_DIR, 'config.csv');
 
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+const PROFITS_HEADERS = ['id','user_id','username','currency','amount','amount_usd','collection','share','created_at'];
+const CONFIG_HEADERS = ['key','value'];
 
-const db = new Database(dbPath);
+function initDB() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(PROFITS_FILE))
+    fs.writeFileSync(PROFITS_FILE, stringify([], { header: true, columns: PROFITS_HEADERS }));
+  if (!fs.existsSync(CONFIG_FILE))
+    fs.writeFileSync(CONFIG_FILE, stringify([{ key: 'announce_channel', value: '' }], { header: true, columns: CONFIG_HEADERS }));
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS profits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    username TEXT NOT NULL,
-    currency TEXT NOT NULL,
-    amount REAL NOT NULL,
-    amount_usd REAL NOT NULL,
-    collection TEXT NOT NULL,
-    share INTEGER NOT NULL DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+function readProfits() {
+  const content = fs.readFileSync(PROFITS_FILE, 'utf8');
+  if (!content.trim()) return [];
+  return parse(content, { columns: true, skip_empty_lines: true });
+}
 
-  CREATE TABLE IF NOT EXISTS config (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-`);
+function writeProfits(rows) {
+  fs.writeFileSync(PROFITS_FILE, stringify(rows, { header: true, columns: PROFITS_HEADERS }));
+}
 
-db.prepare("INSERT OR IGNORE INTO config (key, value) VALUES ('announce_channel', '')").run();
+function readConfig() {
+  const content = fs.readFileSync(CONFIG_FILE, 'utf8');
+  if (!content.trim()) return [];
+  return parse(content, { columns: true, skip_empty_lines: true });
+}
 
-const insertProfitStmt = db.prepare(`
-  INSERT INTO profits (user_id, username, currency, amount, amount_usd, collection, share)
-  VALUES (@user_id, @username, @currency, @amount, @amount_usd, @collection, @share)
-`);
+function writeConfig(rows) {
+  fs.writeFileSync(CONFIG_FILE, stringify(rows, { header: true, columns: CONFIG_HEADERS }));
+}
 
-const getConfigStmt = db.prepare('SELECT value FROM config WHERE key = ?');
-const setConfigStmt = db.prepare(`
-  INSERT INTO config (key, value)
-  VALUES (?, ?)
-  ON CONFLICT(key) DO UPDATE SET value = excluded.value
-`);
-
-const getUserStatsStmt = db.prepare(`
-  SELECT
-    COALESCE(SUM(amount_usd), 0) AS total_profit_usd,
-    COUNT(*) AS trade_count,
-    SUM(CASE WHEN amount_usd > 1 THEN 1 ELSE 0 END) AS wins,
-    COALESCE(MAX(amount_usd), 0) AS best_trade_usd
-  FROM profits
-  WHERE user_id = ?
-`);
-
-const getLeaderboardStmt = db.prepare(`
-  SELECT
-    username,
-    user_id,
-    SUM(amount_usd) AS total_profit_usd,
-    COUNT(*) AS trade_count
-  FROM profits
-  GROUP BY user_id, username
-  ORDER BY total_profit_usd DESC
-  LIMIT ?
-`);
-
-const getAllStatsStmt = db.prepare(`
-  SELECT
-    COALESCE(SUM(amount_usd), 0) AS total_profit_usd,
-    COUNT(*) AS total_trades,
-    COUNT(DISTINCT user_id) AS total_users
-  FROM profits
-`);
-
-const getTopCurrencyStmt = db.prepare(`
-  SELECT currency
-  FROM profits
-  GROUP BY currency
-  ORDER BY COUNT(*) DESC, currency ASC
-  LIMIT 1
-`);
-
-const getRecentProfitsStmt = db.prepare(`
-  SELECT
-    id,
-    user_id,
-    username,
-    currency,
-    amount,
-    amount_usd,
-    collection,
-    share,
-    created_at
-  FROM profits
-  ORDER BY datetime(created_at) DESC, id DESC
-  LIMIT ?
-`);
-
-function insertProfit(profit) {
-  insertProfitStmt.run(profit);
+function insertProfit({ user_id, username, currency, amount, amount_usd, collection, share }) {
+  const rows = readProfits();
+  const maxId = rows.reduce((max, r) => Math.max(max, parseInt(r.id) || 0), 0);
+  rows.push({ id: maxId + 1, user_id, username, currency, amount, amount_usd, collection, share: share ? 1 : 0, created_at: new Date().toISOString() });
+  writeProfits(rows);
 }
 
 function getConfig(key) {
-  const row = getConfigStmt.get(key);
+  const row = readConfig().find(r => r.key === key);
   return row ? row.value : null;
 }
 
 function setConfig(key, value) {
-  setConfigStmt.run(key, String(value));
+  const rows = readConfig();
+  const idx = rows.findIndex(r => r.key === key);
+  if (idx >= 0) rows[idx].value = value; else rows.push({ key, value });
+  writeConfig(rows);
 }
 
 function getUserStats(userId) {
-  return getUserStatsStmt.get(userId);
+  const rows = readProfits().filter(r => r.user_id === userId);
+  return {
+    total_profit_usd: rows.reduce((s, r) => s + parseFloat(r.amount_usd), 0),
+    trade_count: rows.length,
+    wins: rows.filter(r => parseFloat(r.amount_usd) > 1).length,
+    best_trade_usd: rows.reduce((m, r) => Math.max(m, parseFloat(r.amount_usd)), 0)
+  };
 }
 
 function getLeaderboard(limit = 10) {
-  return getLeaderboardStmt.all(limit);
+  const byUser = {};
+  for (const r of readProfits()) {
+    if (!byUser[r.user_id]) byUser[r.user_id] = { username: r.username, user_id: r.user_id, total_profit_usd: 0, trade_count: 0 };
+    byUser[r.user_id].total_profit_usd += parseFloat(r.amount_usd);
+    byUser[r.user_id].trade_count++;
+  }
+  return Object.values(byUser).sort((a, b) => b.total_profit_usd - a.total_profit_usd).slice(0, limit);
 }
 
 function getAllStats() {
-  const baseStats = getAllStatsStmt.get();
-  const topCurrencyRow = getTopCurrencyStmt.get();
-
+  const rows = readProfits();
+  const currencyCount = {};
+  for (const r of rows) currencyCount[r.currency] = (currencyCount[r.currency] || 0) + 1;
   return {
-    ...baseStats,
-    top_currency: topCurrencyRow ? topCurrencyRow.currency : null,
+    total_profit_usd: rows.reduce((s, r) => s + parseFloat(r.amount_usd), 0),
+    total_trades: rows.length,
+    total_users: new Set(rows.map(r => r.user_id)).size,
+    top_currency: Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'USD'
   };
 }
 
 function getRecentProfits(limit = 20) {
-  return getRecentProfitsStmt.all(limit);
+  return readProfits().slice(-limit).reverse();
 }
 
-module.exports = {
-  insertProfit,
-  getConfig,
-  setConfig,
-  getUserStats,
-  getLeaderboard,
-  getAllStats,
-  getRecentProfits,
-};
+initDB();
+
+module.exports = { insertProfit, getConfig, setConfig, getUserStats, getLeaderboard, getAllStats, getRecentProfits };
