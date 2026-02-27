@@ -86,6 +86,17 @@ Follow these carefully — you only need to do this once.
 
 ## Step 3: Install the Bot
 
+### The Easy Way (Recommended)
+After cloning the repo, just run:
+
+```bash
+node setup.js
+```
+
+This handles everything — config, dependencies, PM2, and bot startup — in one go.
+
+### Manual Installation
+
 ### Linux
 Run these commands one by one. Copy and paste each line:
 
