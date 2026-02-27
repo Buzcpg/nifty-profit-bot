@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profit Leaderboard</title>
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --text: #ffffff;
+      --accent: #00ff88;
+      --panel: #141416;
+      --border: #232329;
+      --muted: #9ea0a8;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .panel {
+      max-width: 980px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+      padding: 18px;
+    }
+
+    h1 {
+      color: var(--accent);
+      margin: 0 0 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th { color: var(--muted); }
+
+    .top-row {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    @media (max-width: 680px) {
+      body { padding: 14px; }
+      table { font-size: 0.9rem; }
+      th, td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Leaderboard</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Username</th>
+          <th>Total Profit USD</th>
+          <th>Trade Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (leaderboard || []).forEach((entry, index) => { %>
+          <tr class="<%= index < 3 ? 'top-row' : '' %>">
+            <td><%= index + 1 %></td>
+            <td><%= entry.username || 'Unknown' %></td>
+            <td><%= entry.totalProfitUsd ?? entry.total_profit_usd ?? 0 %></td>
+            <td><%= entry.tradeCount ?? entry.trade_count ?? 0 %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

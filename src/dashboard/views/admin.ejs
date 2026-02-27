@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nifty Workshop Admin</title>
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --text: #ffffff;
+      --accent: #00ff88;
+      --panel: #141416;
+      --border: #232329;
+      --muted: #9ea0a8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1, h2 { margin: 0 0 16px; }
+    h1 { color: var(--accent); }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    form {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input[type="text"] {
+      background: #101014;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-width: 260px;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #05130c;
+      font-weight: 600;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .cards {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin-top: 8px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      background: #0f0f12;
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      color: var(--accent);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th { color: var(--muted); }
+
+    .panel p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .config-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .helper {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .preview {
+      margin-top: 10px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    @media (max-width: 680px) {
+      body { padding: 14px; }
+      table { font-size: 0.85rem; }
+      th, td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Nifty Workshop Admin</h1>
+    <form action="/admin/config" method="POST">
+      <label for="announce_channel">Announce Channel</label>
+      <input
+        id="announce_channel"
+        type="text"
+        name="announce_channel"
+        value="<%= announceChannel || '' %>"
+        placeholder="Channel ID"
+      />
+      <button type="submit">Save Config</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Profit Name (Bot Nickname)</h2>
+    <p>When enabled, the bot updates its nickname in your Discord server every 6 minutes to show total profit.</p>
+    <form class="config-stack" action="/admin/config/profit-name" method="POST">
+      <label class="checkbox-row" for="profit_name_enabled">
+        <input
+          id="profit_name_enabled"
+          type="checkbox"
+          name="profit_name_enabled"
+          value="true"
+          <%= profitNameEnabled === 'true' ? 'checked' : '' %>
+        />
+        Enable Profit Name
+      </label>
+
+      <div class="field">
+        <label for="profit_name_guild_id">Server ID</label>
+        <input
+          id="profit_name_guild_id"
+          type="text"
+          name="profit_name_guild_id"
+          value="<%= profitNameGuildId || '' %>"
+          placeholder="Right-click your server → Copy Server ID"
+        />
+        <p class="helper">To get your Server ID: enable Developer Mode in Discord Settings → Advanced, then right-click your server name and click 'Copy Server ID'</p>
+      </div>
+
+      <button type="submit">Save</button>
+    </form>
+    <% if (profitNameEnabled === 'true') { %>
+      <div class="preview">
+        Current: 💰 $<%= Number(stats?.total_profit_usd ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) %> total
+      </div>
+    <% } %>
+  </div>
+
+  <div class="panel">
+    <h2>Stats</h2>
+    <div class="cards">
+      <div class="card">
+        <span class="label">Total Profit USD</span>
+        <span class="value"><%= stats?.totalProfitUsd ?? 0 %></span>
+      </div>
+      <div class="card">
+        <span class="label">Total Trades</span>
+        <span class="value"><%= stats?.totalTrades ?? 0 %></span>
+      </div>
+      <div class="card">
+        <span class="label">Total Users</span>
+        <span class="value"><%= stats?.totalUsers ?? 0 %></span>
+      </div>
+      <div class="card">
+        <span class="label">Top Currency</span>
+        <span class="value"><%= stats?.topCurrency || 'N/A' %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Last 20 Profits</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Collection</th>
+          <th>Amount</th>
+          <th>Currency</th>
+          <th>USD Value</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (recentProfits || []).forEach((profit) => { %>
+          <tr>
+            <td><%= profit.username || 'Unknown' %></td>
+            <td><%= profit.collection || 'N/A' %></td>
+            <td><%= profit.amount ?? 0 %></td>
+            <td><%= profit.currency || 'N/A' %></td>
+            <td><%= profit.usd_value ?? 0 %></td>
+            <td><%= profit.date || profit.created_at || 'N/A' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
